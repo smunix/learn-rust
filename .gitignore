@@ -1,0 +1,8 @@
+.devenv
+
+### NIX build ###
+result
+
+### RUST ###
+debug/
+target/
