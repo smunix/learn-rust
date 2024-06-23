@@ -32,26 +32,35 @@
             src = cleanSource ./hello-R;
             # src = filter { root = ./hello-R; };
           };
+          actix-gcd =
+            let manifest = (importTOML ./actix-gcd/Cargo.toml).package;
+            in buildRustPackage {
+              inherit (manifest) version;
+              pname = manifest.name;
+              cargoLock.lockFile = ./actix-gcd/Cargo.lock;
+              src = cleanSource ./actix-gcd;
+              # src = filter { root = ./actix-gcd; };
+            };
         };
     in {
       packages = forEachSystem (system:
         let pkgs = import nixpkgs { inherit system; };
         in rec {
           devenv-up = self.devShells.${system}.default.config.procfileScript;
-          inherit (pkgFor pkgs) hello-R;
-          default = hello-R;
+          inherit (pkgFor pkgs) hello-R actix-gcd;
+          default = actix-gcd;
         });
 
       devShells = forEachSystem (system:
         let
           pkgs = import nixpkgs { inherit system; };
-          inherit (pkgFor pkgs) hello-R;
+          inherit (pkgFor pkgs) actix-gcd hello-R;
         in with pkgs;
         with lib; {
           default = devenv.lib.mkShell {
             inherit inputs pkgs;
             modules = [{
-              packages = [ hello-R ];
+              packages = [ actix-gcd hello-R ];
               languages = { rust.enable = true; };
 
               enterShell = ''
