@@ -1,4 +1,4 @@
-use num::Complex;
+use num::{Complex, Float};
 use std::str::FromStr;
 
 fn openCloseP(s: &str, l: char, r: char) -> Option<&str> {
@@ -79,6 +79,88 @@ fn escape_time(c: Complex<f64>, limit: usize) -> Option<usize> {
         z = z * z + c;
     }
     None
+}
+
+#[test]
+fn test_pixelPoint() {
+    assert_eq!(
+        pixelPoint::<f64>(
+            (100, 200),
+            (0, 0),
+            Complex { re: -1.0, im: 1.0 },
+            Complex { re: 1.0, im: -1.0 },
+        ),
+        Complex { re: -1.0, im: 1.0 }
+    );
+    assert_eq!(
+        pixelPoint::<f64>(
+            (100, 200),
+            (100, 200),
+            Complex { re: -1.0, im: 1.0 },
+            Complex { re: 1.0, im: -1.0 },
+        ),
+        Complex { re: 1.0, im: -1.0 }
+    );
+    assert_eq!(
+        pixelPoint::<f64>(
+            (100, 200),
+            (25, 175),
+            Complex { re: -1.0, im: 1.0 },
+            Complex { re: 1.0, im: -1.0 },
+        ),
+        Complex {
+            re: -0.5,
+            im: -0.75
+        }
+    );
+
+    assert_eq!(
+        pixelPoint::<f32>(
+            (100, 200),
+            (0, 0),
+            Complex { re: -1.0, im: 1.0 },
+            Complex { re: 1.0, im: -1.0 },
+        ),
+        Complex { re: -1.0, im: 1.0 }
+    );
+    assert_eq!(
+        pixelPoint::<f32>(
+            (100, 200),
+            (100, 200),
+            Complex { re: -1.0, im: 1.0 },
+            Complex { re: 1.0, im: -1.0 },
+        ),
+        Complex { re: 1.0, im: -1.0 }
+    );
+    assert_eq!(
+        pixelPoint::<f32>(
+            (100, 200),
+            (25, 175),
+            Complex { re: -1.0, im: 1.0 },
+            Complex { re: 1.0, im: -1.0 },
+        ),
+        Complex {
+            re: -0.5,
+            im: -0.75
+        }
+    );
+}
+fn pixelPoint<T>(
+    bounds: (usize, usize),
+    pixel: (usize, usize),
+    ul: Complex<T>,
+    lr: Complex<T>,
+) -> Complex<T>
+where
+    T: Float,
+{
+    let (w, h) = (lr.re - ul.re, ul.im - lr.im);
+    let wRatio = w / T::from(bounds.0).unwrap();
+    let hRatio = h / T::from(bounds.1).unwrap();
+    Complex {
+        re: ul.re + T::from(pixel.0).unwrap() * wRatio,
+        im: ul.im - T::from(pixel.1).unwrap() * hRatio,
+    }
 }
 
 fn main() {
