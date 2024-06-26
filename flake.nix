@@ -70,6 +70,9 @@
                 ${hello-R}/bin/hello-R 24 8 16
               '';
 
+              scripts = with pkgs; {
+                actix-gcd-tree.exec = "${nix-tree}/bin/nix-tree ${actix-gcd}";
+              };
               processes.hello.exec = "${hello-R}/bin/hello-R";
               pre-commit.hooks = {
                 # fourmolu.enable = true;
