@@ -1,4 +1,8 @@
+use image::png::PNGEncoder;
+use image::ColorType;
 use num::{Complex, Float};
+use std::env;
+use std::fs::File;
 use std::str::FromStr;
 
 fn openCloseP(s: &str, l: char, r: char) -> Option<&str> {
@@ -47,38 +51,31 @@ fn test_pairP() {
 #[test]
 fn test_complexP() {
     assert_eq!(
-        complexP::<f64>("{10.0,20.0}"),
+        complexP::<f64>("{10.0,20.0}", ','),
         Some(Complex { re: 10.0, im: 20.0 })
     );
     assert_eq!(
-        complexP::<f64>("   {10.0,20.0}"),
+        complexP::<f64>("   {10.0,20.0}", ','),
         Some(Complex { re: 10.0, im: 20.0 })
     );
     assert_eq!(
-        complexP::<f64>("{10.0,20.0}   "),
+        complexP::<f64>("{10.0,20.0}   ", ','),
         Some(Complex { re: 10.0, im: 20.0 })
     );
-    assert_eq!(complexP::<i32>("{10,20}"), Some(Complex { re: 10, im: 20 }));
+    assert_eq!(
+        complexP::<i32>("{10,20}", ','),
+        Some(Complex { re: 10, im: 20 })
+    );
 }
-fn complexP<T: FromStr>(s: &str) -> Option<Complex<T>> {
+
+fn complexP<T: FromStr>(s: &str, sep: char) -> Option<Complex<T>> {
     match bracesP(s) {
-        Some(t) => match pairP::<T>(t, ',') {
+        Some(t) => match pairP::<T>(t, sep) {
             Some((re, im)) => Some(Complex { re, im }),
             _ => None,
         },
         _ => None,
     }
-}
-
-fn escape_time(c: Complex<f64>, limit: usize) -> Option<usize> {
-    let mut z = Complex { re: 0.0, im: 0.0 };
-    for i in 0..limit {
-        if z.norm_sqr() > 4.0 {
-            return Some(i);
-        }
-        z = z * z + c;
-    }
-    None
 }
 
 #[test]
@@ -163,6 +160,70 @@ where
     }
 }
 
+fn loopN<T>(c: Complex<T>, limit: usize) -> Option<usize>
+where
+    T: Float,
+{
+    let mut z = Complex {
+        re: T::from(0.2)?,
+        im: T::from(0.2)?,
+    };
+    for i in 0..limit {
+        if z.norm_sqr() > T::from(4.0)? {
+            return Some(i);
+        }
+        z = z * z + c;
+    }
+    None
+}
+
+fn render<T>(pixels: &mut [u8], bounds: (usize, usize), ul: Complex<T>, lr: Complex<T>)
+where
+    T: Float,
+{
+    assert!(pixels.len() == bounds.0 * bounds.1);
+
+    for y in 0..bounds.1 {
+        for x in 0..bounds.0 {
+            let point = pixelPoint::<T>(bounds, (x, y), ul, lr);
+            pixels[y * bounds.0 + x] = match loopN(point, 255) {
+                Some(n) => 255 - n as u8,
+                _ => 0,
+            }
+        }
+    }
+}
+
+fn writeImage(filename: &str, pixels: &[u8], bounds: (usize, usize)) -> Result<(), std::io::Error> {
+    let enc = PNGEncoder::new(File::create(filename)?);
+    enc.encode(
+        &pixels,
+        bounds.0 as u32,
+        bounds.1 as u32,
+        ColorType::Gray(8),
+    )?;
+    Ok(())
+}
+
 fn main() {
     println!("Hello, world!");
+
+    let args: Vec<String> = env::args().collect();
+
+    if args.len() != 5 {
+        eprintln!("Usage: {} FILE PIXELS UL LR", args[0]);
+        eprintln!(
+            "Example: {} mandel.png 1000x750 (-1.20,0.35) (-1.0,0.20)",
+            args[0]
+        );
+        std::process::exit(1);
+    }
+
+    let bounds = pairP(&args[2], 'x').expect("error parsing image dimensions");
+    let ul = complexP::<f64>(&args[3], ',').expect("error parsing upper left corner point");
+    let lr = complexP::<f64>(&args[4], ',').expect("error parsing lower right corner point");
+    let mut pixels = vec![0; bounds.0 * bounds.1];
+
+    render(&mut pixels, bounds, ul, lr);
+    writeImage(&args[1], &pixels, bounds).expect("error writing PNG file");
 }

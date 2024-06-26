@@ -24,6 +24,15 @@
         with pkgs;
         with lib;
         with rustPlatform; {
+          mandelbrot =
+            let manifest = (importTOML ./mandelbrot/Cargo.toml).package;
+            in buildRustPackage {
+              inherit (manifest) version;
+              pname = manifest.name;
+              cargoLock.lockFile = ./mandelbrot/Cargo.lock;
+              src = cleanSource ./mandelbrot;
+              # src = filter { root = ./mandelbrot; };
+            };
           hello-R = let manifest = (importTOML ./hello-R/Cargo.toml).package;
           in buildRustPackage {
             inherit (manifest) version;
@@ -47,23 +56,30 @@
         };
     in {
       packages = forEachSystem (system:
-        let pkgs = import nixpkgs { inherit system; };
+        let
+          pkgs = import nixpkgs {
+            inherit system;
+            overlays = [ (inputs.rust-overlay.overlays.default) ];
+          };
         in rec {
           devenv-up = self.devShells.${system}.default.config.procfileScript;
-          inherit (pkgFor pkgs) hello-R actix-gcd;
-          default = actix-gcd;
+          inherit (pkgFor pkgs) hello-R actix-gcd mandelbrot;
+          default = mandelbrot;
         });
 
       devShells = forEachSystem (system:
         let
-          pkgs = import nixpkgs { inherit system; };
-          inherit (pkgFor pkgs) actix-gcd hello-R;
+          pkgs = import nixpkgs {
+            inherit system;
+            overlays = [ (inputs.rust-overlay.overlays.default) ];
+          };
+          inherit (pkgFor pkgs) actix-gcd hello-R mandelbrot;
         in with pkgs;
         with lib; {
           default = devenv.lib.mkShell {
             inherit inputs pkgs;
             modules = [{
-              packages = [ actix-gcd hello-R ];
+              packages = [ actix-gcd hello-R mandelbrot ];
               languages = { rust.enable = true; };
 
               enterShell = ''
@@ -72,6 +88,7 @@
 
               scripts = with pkgs; {
                 actix-gcd-tree.exec = "${nix-tree}/bin/nix-tree ${actix-gcd}";
+                mandelbrot-tree.exec = "${nix-tree}/bin/nix-tree ${mandelbrot}";
               };
               processes.hello.exec = "${hello-R}/bin/hello-R";
               pre-commit.hooks = {
