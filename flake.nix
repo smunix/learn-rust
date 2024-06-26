@@ -39,7 +39,10 @@
               pname = manifest.name;
               cargoLock.lockFile = ./actix-gcd/Cargo.lock;
               src = cleanSource ./actix-gcd;
-              # src = filter { root = ./actix-gcd; };
+              # src = cleanSourceWith {
+              #   src = ./actix-gcd;
+              #   filter = path: type: true;
+              # };
             };
         };
     in {
