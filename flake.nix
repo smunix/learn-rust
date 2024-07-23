@@ -24,6 +24,14 @@
         with pkgs;
         with lib;
         with rustPlatform; {
+          progress = let manifest = (importTOML ./progress/Cargo.toml).package;
+          in buildRustPackage {
+            inherit (manifest) version;
+            pname = manifest.name;
+            cargoLock.lockFile = ./progress/Cargo.lock;
+            src = cleanSource ./progress;
+            # src = filter { root = ./progress; };
+          };
           mandelbrot =
             let manifest = (importTOML ./mandelbrot/Cargo.toml).package;
             in buildRustPackage {
@@ -59,11 +67,11 @@
         let
           pkgs = import nixpkgs {
             inherit system;
-            overlays = [ (inputs.rust-overlay.overlays.default) ];
+            overlays = [ inputs.rust-overlay.overlays.default ];
           };
         in rec {
           devenv-up = self.devShells.${system}.default.config.procfileScript;
-          inherit (pkgFor pkgs) hello-R actix-gcd mandelbrot;
+          inherit (pkgFor pkgs) hello-R actix-gcd mandelbrot progress;
           default = mandelbrot;
         });
 
@@ -71,15 +79,15 @@
         let
           pkgs = import nixpkgs {
             inherit system;
-            overlays = [ (inputs.rust-overlay.overlays.default) ];
+            overlays = [ inputs.rust-overlay.overlays.default ];
           };
-          inherit (pkgFor pkgs) actix-gcd hello-R mandelbrot;
+          inherit (pkgFor pkgs) actix-gcd hello-R mandelbrot progress;
         in with pkgs;
         with lib; {
           default = devenv.lib.mkShell {
             inherit inputs pkgs;
             modules = [{
-              packages = [ actix-gcd hello-R mandelbrot ];
+              packages = [ cargo-watch actix-gcd hello-R mandelbrot progress ];
               languages = { rust.enable = true; };
 
               enterShell = ''
@@ -89,6 +97,23 @@
               scripts = with pkgs; {
                 actix-gcd-tree.exec = "${nix-tree}/bin/nix-tree ${actix-gcd}";
                 mandelbrot-tree.exec = "${nix-tree}/bin/nix-tree ${mandelbrot}";
+                progress-tree.exec = "${nix-tree}/bin/nix-tree ${progress}";
+
+                actix-gcd-loop.exec = ''
+                  pushd actix-gcd
+                  cargo watch -c -w src -x run
+                  popd
+                '';
+                mandelbrot-loop.exec = ''
+                  pushd mandelbrot
+                  cargo watch -c -w src -x run
+                  popd
+                '';
+                progress-loop.exec = ''
+                  pushd progress
+                  cargo watch -c -w src -x run
+                  popd
+                '';
               };
               processes.hello.exec = "${hello-R}/bin/hello-R";
               pre-commit.hooks = {

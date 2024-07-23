@@ -5,7 +5,7 @@ use std::env;
 use std::fs::File;
 use std::str::FromStr;
 
-fn openCloseP(s: &str, l: char, r: char) -> Option<&str> {
+fn open_close_p(s: &str, l: char, r: char) -> Option<&str> {
     let t = s.trim();
     match t.find(l) {
         Some(0) => match t.find(r) {
@@ -22,15 +22,15 @@ fn openCloseP(s: &str, l: char, r: char) -> Option<&str> {
     }
 }
 
-fn bracesP(s: &str) -> Option<&str> {
-    openCloseP(s, '{', '}')
+fn braces_p(s: &str) -> Option<&str> {
+    open_close_p(s, '{', '}')
 }
 
-fn parensP(s: &str) -> Option<&str> {
-    openCloseP(s, '(', ')')
+fn parens_p(s: &str) -> Option<&str> {
+    open_close_p(s, '(', ')')
 }
 
-fn pairP<T: FromStr>(s: &str, sep: char) -> Option<(T, T)> {
+fn pair_p<T: FromStr>(s: &str, sep: char) -> Option<(T, T)> {
     match s.find(sep) {
         None => None,
         Some(index) => match (T::from_str(&s[..index]), T::from_str(&s[index + 1..])) {
@@ -41,36 +41,37 @@ fn pairP<T: FromStr>(s: &str, sep: char) -> Option<(T, T)> {
 }
 
 #[test]
-fn test_pairP() {
-    assert_eq!(pairP::<i32>("", ','), None);
-    assert_eq!(pairP::<i32>("10,20", ','), Some((10, 20)));
-    assert_eq!(pairP::<i32>("10x20", 'x'), Some((10, 20)));
-    assert_eq!(pairP::<f32>("10x20", 'x'), Some((10.0, 20.0)));
+fn test_pair_p() {
+    assert_eq!(pair_p::<i32>("", ','), None);
+    assert_eq!(pair_p::<i32>("10,20", ','), Some((10, 20)));
+    assert_eq!(pair_p::<i32>("10x20", 'x'), Some((10, 20)));
+    assert_eq!(pair_p::<f32>("10x20", 'x'), Some((10.0, 20.0)));
 }
 
 #[test]
-fn test_complexP() {
+fn test_complex_p() {
     assert_eq!(
-        complexP::<f64>("{10.0,20.0}", ','),
+        complex_p::<f64>("{10.0,20.0}", ','),
+        Some(Complex { re: 10.0, im: 20.0 })
+    );
+
+    assert_eq!(
+        complex_p::<f64>("   {10.0,20.0}", ','),
         Some(Complex { re: 10.0, im: 20.0 })
     );
     assert_eq!(
-        complexP::<f64>("   {10.0,20.0}", ','),
+        complex_p::<f64>("{10.0,20.0}   ", ','),
         Some(Complex { re: 10.0, im: 20.0 })
     );
     assert_eq!(
-        complexP::<f64>("{10.0,20.0}   ", ','),
-        Some(Complex { re: 10.0, im: 20.0 })
-    );
-    assert_eq!(
-        complexP::<i32>("{10,20}", ','),
+        complex_p::<i32>("{10,20}", ','),
         Some(Complex { re: 10, im: 20 })
     );
 }
 
-fn complexP<T: FromStr>(s: &str, sep: char) -> Option<Complex<T>> {
-    match bracesP(s) {
-        Some(t) => match pairP::<T>(t, sep) {
+fn complex_p<T: FromStr>(s: &str, sep: char) -> Option<Complex<T>> {
+    match braces_p(s) {
+        Some(t) => match pair_p::<T>(t, sep) {
             Some((re, im)) => Some(Complex { re, im }),
             _ => None,
         },
@@ -79,9 +80,9 @@ fn complexP<T: FromStr>(s: &str, sep: char) -> Option<Complex<T>> {
 }
 
 #[test]
-fn test_pixelPoint() {
+fn test_pixel_point() {
     assert_eq!(
-        pixelPoint::<f64>(
+        pixel_point::<f64>(
             (100, 200),
             (0, 0),
             Complex { re: -1.0, im: 1.0 },
@@ -90,7 +91,7 @@ fn test_pixelPoint() {
         Complex { re: -1.0, im: 1.0 }
     );
     assert_eq!(
-        pixelPoint::<f64>(
+        pixel_point::<f64>(
             (100, 200),
             (100, 200),
             Complex { re: -1.0, im: 1.0 },
@@ -99,7 +100,7 @@ fn test_pixelPoint() {
         Complex { re: 1.0, im: -1.0 }
     );
     assert_eq!(
-        pixelPoint::<f64>(
+        pixel_point::<f64>(
             (100, 200),
             (25, 175),
             Complex { re: -1.0, im: 1.0 },
@@ -112,7 +113,7 @@ fn test_pixelPoint() {
     );
 
     assert_eq!(
-        pixelPoint::<f32>(
+        pixel_point::<f32>(
             (100, 200),
             (0, 0),
             Complex { re: -1.0, im: 1.0 },
@@ -121,7 +122,7 @@ fn test_pixelPoint() {
         Complex { re: -1.0, im: 1.0 }
     );
     assert_eq!(
-        pixelPoint::<f32>(
+        pixel_point::<f32>(
             (100, 200),
             (100, 200),
             Complex { re: -1.0, im: 1.0 },
@@ -130,7 +131,7 @@ fn test_pixelPoint() {
         Complex { re: 1.0, im: -1.0 }
     );
     assert_eq!(
-        pixelPoint::<f32>(
+        pixel_point::<f32>(
             (100, 200),
             (25, 175),
             Complex { re: -1.0, im: 1.0 },
@@ -142,7 +143,7 @@ fn test_pixelPoint() {
         }
     );
 }
-fn pixelPoint<T>(
+fn pixel_point<T>(
     bounds: (usize, usize),
     pixel: (usize, usize),
     ul: Complex<T>,
@@ -152,15 +153,15 @@ where
     T: Float,
 {
     let (w, h) = (lr.re - ul.re, ul.im - lr.im);
-    let wRatio = w / T::from(bounds.0).unwrap();
-    let hRatio = h / T::from(bounds.1).unwrap();
+    let w_ratio = w / T::from(bounds.0).unwrap();
+    let h_ratio = h / T::from(bounds.1).unwrap();
     Complex {
-        re: ul.re + T::from(pixel.0).unwrap() * wRatio,
-        im: ul.im - T::from(pixel.1).unwrap() * hRatio,
+        re: ul.re + T::from(pixel.0).unwrap() * w_ratio,
+        im: ul.im - T::from(pixel.1).unwrap() * h_ratio,
     }
 }
 
-fn loopN<T>(c: Complex<T>, limit: usize) -> Option<usize>
+fn loop_n<T>(c: Complex<T>, limit: usize) -> Option<usize>
 where
     T: Float,
 {
@@ -185,8 +186,8 @@ where
 
     for y in 0..bounds.1 {
         for x in 0..bounds.0 {
-            let point = pixelPoint::<T>(bounds, (x, y), ul, lr);
-            pixels[y * bounds.0 + x] = match loopN(point, 255) {
+            let point = pixel_point::<T>(bounds, (x, y), ul, lr);
+            pixels[y * bounds.0 + x] = match loop_n(point, 255) {
                 Some(n) => 255 - n as u8,
                 _ => 0,
             }
@@ -194,7 +195,11 @@ where
     }
 }
 
-fn writeImage(filename: &str, pixels: &[u8], bounds: (usize, usize)) -> Result<(), std::io::Error> {
+fn write_image(
+    filename: &str,
+    pixels: &[u8],
+    bounds: (usize, usize),
+) -> Result<(), std::io::Error> {
     let enc = PNGEncoder::new(File::create(filename)?);
     enc.encode(
         &pixels,
@@ -219,11 +224,11 @@ fn main() {
         std::process::exit(1);
     }
 
-    let bounds = pairP(&args[2], 'x').expect("error parsing image dimensions");
-    let ul = complexP::<f64>(&args[3], ',').expect("error parsing upper left corner point");
-    let lr = complexP::<f64>(&args[4], ',').expect("error parsing lower right corner point");
+    let bounds = pair_p(&args[2], 'x').expect("error parsing image dimensions");
+    let ul = complex_p::<f64>(&args[3], ',').expect("error parsing upper left corner point");
+    let lr = complex_p::<f64>(&args[4], ',').expect("error parsing lower right corner point");
     let mut pixels = vec![0; bounds.0 * bounds.1];
 
     render(&mut pixels, bounds, ul, lr);
-    writeImage(&args[1], &pixels, bounds).expect("error writing PNG file");
+    write_image(&args[1], &pixels, bounds).expect("error writing PNG file");
 }
