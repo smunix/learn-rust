@@ -24,6 +24,15 @@
         with pkgs;
         with lib;
         with rustPlatform; {
+          csv-serde =
+            let manifest = (importTOML ./csv-serde/Cargo.toml).package;
+            in buildRustPackage {
+              inherit (manifest) version;
+              pname = manifest.name;
+              cargoLock.lockFile = ./csv-serde/Cargo.lock;
+              src = cleanSource ./csv-serde;
+              # src = filter { root = ./csv-serde; };
+            };
           progress = let manifest = (importTOML ./progress/Cargo.toml).package;
           in buildRustPackage {
             inherit (manifest) version;
@@ -71,7 +80,7 @@
           };
         in rec {
           devenv-up = self.devShells.${system}.default.config.procfileScript;
-          inherit (pkgFor pkgs) hello-R actix-gcd mandelbrot progress;
+          inherit (pkgFor pkgs) hello-R actix-gcd mandelbrot progress csv-serde;
           default = mandelbrot;
         });
 
@@ -81,13 +90,14 @@
             inherit system;
             overlays = [ inputs.rust-overlay.overlays.default ];
           };
-          inherit (pkgFor pkgs) actix-gcd hello-R mandelbrot progress;
+          inherit (pkgFor pkgs) actix-gcd hello-R mandelbrot progress csv-serde;
         in with pkgs;
         with lib; {
           default = devenv.lib.mkShell {
             inherit inputs pkgs;
             modules = [{
-              packages = [ cargo-watch actix-gcd hello-R mandelbrot progress ];
+              packages =
+                [ cargo-watch actix-gcd hello-R mandelbrot progress csv-serde ];
               languages = { rust.enable = true; };
 
               enterShell = ''
@@ -98,6 +108,7 @@
                 actix-gcd-tree.exec = "${nix-tree}/bin/nix-tree ${actix-gcd}";
                 mandelbrot-tree.exec = "${nix-tree}/bin/nix-tree ${mandelbrot}";
                 progress-tree.exec = "${nix-tree}/bin/nix-tree ${progress}";
+                csv-serde-tree.exec = "${nix-tree}/bin/nix-tree ${csv-serde}";
 
                 actix-gcd-loop.exec = ''
                   pushd actix-gcd
@@ -112,6 +123,16 @@
                 progress-loop.exec = ''
                   pushd progress
                   cargo watch -c -w src -x run
+                  popd
+                '';
+                csv-serde-loop.exec = ''
+                  pushd csv-serde
+                  cargo watch -c -w src -x run
+                  popd
+                '';
+                csv-serde-test.exec = ''
+                  pushd csv-serde
+                  cargo watch -c -w src -x test
                   popd
                 '';
               };
