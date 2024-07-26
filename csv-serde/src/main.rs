@@ -1,10 +1,13 @@
+use std::{fs::File, io::BufWriter};
+
 use chrono::NaiveDate;
 use csv::Reader;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use serde_json::Result;
 use url::Url;
 
 /// name,location,Date,Rating,Review,Image_Links
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 struct Review {
     #[serde(rename = "name")]
     name: String,
@@ -29,7 +32,7 @@ struct Review {
     image_links: Option<Vec<Url>>,
 }
 
-fn main() {
+fn rd() -> Vec<(usize, Review)> {
     let mut rdr = Reader::from_path("data/starbucks/reviews_data.csv").unwrap();
     let mut reviews = rdr
         .deserialize()
@@ -38,7 +41,17 @@ fn main() {
     reviews.sort_by(|b, a| (a.rating, a.date).cmp(&(b.rating, b.date)));
     let reviews = reviews
         .into_iter()
-        .filter(|r| r.rating.is_some())
+        // .filter(|r| r.rating.is_some())
         .enumerate();
-    reviews.for_each(|r| println!("{:?}", r));
+    reviews.collect()
+}
+
+fn wr(reviews: &Vec<(usize, Review)>) {
+    let f = File::create("data/starbucks/reviews_data.json").unwrap();
+    let w = BufWriter::new(f);
+    serde_json::to_writer_pretty(w, reviews).unwrap()
+}
+
+fn main() {
+    wr(&rd())
 }
