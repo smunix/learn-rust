@@ -70,7 +70,7 @@ impl IsNaiveDate for String {
     }
 }
 
-pub fn from_deserializer<'de, D>(d: D) -> Result<NaiveDate, D::Error>
+pub fn deserialize_from<'de, D>(d: D) -> Result<NaiveDate, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
