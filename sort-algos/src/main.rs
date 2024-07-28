@@ -10,9 +10,9 @@ trait Sort {
 mod bubble {
     use super::*;
 
-    pub struct Go;
+    pub struct Algo;
 
-    impl Sort for Go {
+    impl Sort for Algo {
         fn sort<T>(&self, vs: &mut [T])
         where
             T: Ord,
@@ -40,9 +40,9 @@ mod insertion {
 
     use super::*;
 
-    pub struct Go;
+    pub struct Algo;
 
-    impl Sort for Go {
+    impl Sort for Algo {
         fn sort<T>(&self, vs: &mut [T])
         where
             T: Ord,
@@ -62,9 +62,9 @@ mod selection {
 
     use super::*;
 
-    pub struct Go;
+    pub struct Algo;
 
-    impl Sort for Go {
+    impl Sort for Algo {
         fn sort<T>(&self, vs: &mut [T])
         where
             T: Ord,
@@ -90,9 +90,9 @@ mod quicksort {
 
     use super::*;
 
-    pub struct Go;
+    pub struct Algo;
 
-    impl Sort for Go {
+    impl Sort for Algo {
         fn sort<T>(&self, vs: &mut [T])
         where
             T: Ord,
@@ -107,8 +107,10 @@ mod quicksort {
             }
 
             fn shift(msg: &str, fun: fn(&mut usize), pos: &mut usize) {
+                #[cfg(test)]
                 print!("\t{msg}: {pos}");
                 fun(pos);
+                #[cfg(test)]
                 println!(" => {pos}");
             }
 
@@ -121,18 +123,22 @@ mod quicksort {
             ) where
                 T: Debug,
             {
+                #[cfg(test)]
                 println!("\tswap_lr({pivot:?}, {rest:?}, {left}, {right})?");
                 if cond() {
                     rest.swap(*left, *right);
                     shift("\tleft", inc, left);
                     shift("\tright", dec, right);
                 }
+                #[cfg(test)]
                 println!("\t... => {rest:?}");
             }
 
+            #[cfg(test)]
             println!("quicksort({:?})", vs);
             match vs.len() {
                 0 | 1 => {
+                    #[cfg(test)]
                     println!("...  => {:?}", vs);
                     return;
                 }
@@ -140,6 +146,7 @@ mod quicksort {
                 2 => {
                     if vs[0] > vs[1] {
                         vs.swap(0, 1);
+                        #[cfg(test)]
                         println!("...  => {:?}", vs);
                         return;
                     }
@@ -151,6 +158,7 @@ mod quicksort {
             let mut right = rest.len() - 1;
 
             while left < right {
+                #[cfg(test)]
                 println!("pivot={pivot:?}, rest={rest:?}, bound=({left},{right})");
                 if &rest[left] < pivot {
                     shift("left", inc, &mut left);
@@ -159,6 +167,7 @@ mod quicksort {
                 } else {
                     swap_lr(|| true, pivot, rest, &mut left, &mut right);
                 }
+                #[cfg(test)]
                 println!("... => rest={rest:?}, bound=({left},{right})");
             }
 
@@ -171,6 +180,7 @@ mod quicksort {
 
             // place the pivot at its final location
             vs.swap(0, left);
+            #[cfg(test)]
             println!("...  => {:?}", vs);
 
             let (left, right) = vs.split_at_mut(left);
@@ -183,9 +193,9 @@ mod quicksort {
 #[cfg(test)]
 mod tests {
     use super::*;
-    fn test_it<Go>(go: &Go)
+    fn test_it<Algo>(go: &Algo)
     where
-        Go: Sort,
+        Algo: Sort,
     {
         let mut vecs = vec![
             vec![],
@@ -212,25 +222,126 @@ mod tests {
 
     #[test]
     fn test_bubble_works() {
-        test_it(&bubble::Go);
+        test_it(&bubble::Algo);
     }
 
     #[test]
     fn test_insertion_works() {
-        test_it(&insertion::Go);
+        test_it(&insertion::Algo);
     }
 
     #[test]
     fn test_selection_works() {
-        test_it(&selection::Go);
+        test_it(&selection::Algo);
     }
 
     #[test]
     fn test_quicksort_works() {
-        test_it(&quicksort::Go);
+        test_it(&quicksort::Algo);
+    }
+}
+
+mod bench {
+    use super::*;
+    use std::{
+        cell::Cell,
+        rc::Rc,
+        time::{Duration, Instant},
+    };
+
+    use rand::Rng;
+
+    use crate::Sort;
+
+    #[derive(Debug, Clone)]
+    struct Eval<T> {
+        t: T,
+        cmps: Rc<Cell<usize>>,
+    }
+
+    impl<T> Eq for Eval<T> where T: Eq {}
+
+    impl<T> PartialEq for Eval<T>
+    where
+        T: PartialEq,
+    {
+        fn eq(&self, other: &Self) -> bool {
+            self.t == other.t
+        }
+    }
+    impl<T> PartialOrd for Eval<T>
+    where
+        T: PartialOrd,
+    {
+        fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+            self.cmps.set(self.cmps.get() + 1);
+            self.t.partial_cmp(&other.t)
+        }
+    }
+    impl<T> Ord for Eval<T>
+    where
+        T: Ord,
+    {
+        fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+            self.partial_cmp(other).unwrap()
+        }
+    }
+
+    fn bench<T, A>(algo: A, values: &[Eval<T>], counter: &Cell<usize>) -> (usize, Duration)
+    where
+        T: Ord,
+        T: Clone,
+        T: Debug,
+        A: Sort,
+    {
+        let mut values: Vec<_> = values.to_vec();
+        counter.set(0);
+        let took = Instant::now();
+        algo.sort(&mut values);
+        let took = took.elapsed();
+        let count = counter.get();
+        for i in 1..values.len() {
+            assert!(values[i - 1] <= values[i]);
+        }
+        (count, took)
+    }
+
+    pub fn run() {
+        let mut rand = rand::thread_rng();
+        let counter = Rc::new(Cell::new(0));
+        for &n in &[0, 10, 100, 1000, 10000, 100000] {
+            for _ in 0..1 {
+                let mut values = Vec::with_capacity(n);
+                for _ in 0..n {
+                    values.push(Eval {
+                        t: rand.gen::<usize>(),
+                        cmps: Rc::clone(&counter),
+                    });
+                }
+
+                println!("{}", "*".repeat(50));
+
+                {
+                    let took = bench(crate::bubble::Algo, &values, &counter);
+                    println!("bubble {n} {took:?}");
+                }
+                {
+                    let took = bench(crate::insertion::Algo, &values, &counter);
+                    println!("insertion {n} {took:?}");
+                }
+                {
+                    let took = bench(crate::selection::Algo, &values, &counter);
+                    println!("selection {n} {took:?}");
+                }
+                {
+                    let took = bench(crate::quicksort::Algo, &values, &counter);
+                    println!("quicksort {n} {took:?}");
+                }
+            }
+        }
     }
 }
 
 fn main() {
-    println!("Hello, world!");
+    bench::run();
 }

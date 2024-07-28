@@ -109,6 +109,7 @@
             modules = [{
               packages = [
                 cargo-watch
+                cargo-limit
                 actix-gcd
                 hello-R
                 mandelbrot
@@ -131,7 +132,7 @@
 
                 actix-gcd-loop.exec = ''
                   pushd actix-gcd
-                  cargo watch -c -w src -x run
+                  cargo watch -c -w src -x run --releate
                   popd
                 '';
                 mandelbrot-loop.exec = ''
@@ -156,7 +157,7 @@
                 '';
                 sort-algos-loop.exec = ''
                   pushd sort-algos
-                  cargo watch -c -w src -x run
+                  cargo watch -c -w src -x "run --release"
                   popd
                 '';
                 sort-algos-test.exec = ''
