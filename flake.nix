@@ -24,6 +24,15 @@
         with pkgs;
         with lib;
         with rustPlatform; {
+          sort-algos =
+            let manifest = (importTOML ./sort-algos/Cargo.toml).package;
+            in buildRustPackage {
+              inherit (manifest) version;
+              pname = manifest.name;
+              cargoLock.lockFile = ./sort-algos/Cargo.lock;
+              src = cleanSource ./sort-algos;
+              # src = filter { root = ./sort-algos; };
+            };
           csv-serde =
             let manifest = (importTOML ./csv-serde/Cargo.toml).package;
             in buildRustPackage {
@@ -80,7 +89,8 @@
           };
         in rec {
           devenv-up = self.devShells.${system}.default.config.procfileScript;
-          inherit (pkgFor pkgs) hello-R actix-gcd mandelbrot progress csv-serde;
+          inherit (pkgFor pkgs)
+            hello-R actix-gcd mandelbrot progress csv-serde sort-algos;
           default = mandelbrot;
         });
 
@@ -90,14 +100,22 @@
             inherit system;
             overlays = [ inputs.rust-overlay.overlays.default ];
           };
-          inherit (pkgFor pkgs) actix-gcd hello-R mandelbrot progress csv-serde;
+          inherit (pkgFor pkgs)
+            actix-gcd hello-R mandelbrot progress csv-serde sort-algos;
         in with pkgs;
         with lib; {
           default = devenv.lib.mkShell {
             inherit inputs pkgs;
             modules = [{
-              packages =
-                [ cargo-watch actix-gcd hello-R mandelbrot progress csv-serde ];
+              packages = [
+                cargo-watch
+                actix-gcd
+                hello-R
+                mandelbrot
+                progress
+                csv-serde
+                sort-algos
+              ];
               languages = { rust.enable = true; };
 
               enterShell = ''
@@ -109,6 +127,7 @@
                 mandelbrot-tree.exec = "${nix-tree}/bin/nix-tree ${mandelbrot}";
                 progress-tree.exec = "${nix-tree}/bin/nix-tree ${progress}";
                 csv-serde-tree.exec = "${nix-tree}/bin/nix-tree ${csv-serde}";
+                sort-algos-tree.exec = "${nix-tree}/bin/nix-tree ${sort-algos}";
 
                 actix-gcd-loop.exec = ''
                   pushd actix-gcd
@@ -132,6 +151,16 @@
                 '';
                 csv-serde-test.exec = ''
                   pushd csv-serde
+                  cargo watch -c -w src -x test
+                  popd
+                '';
+                sort-algos-loop.exec = ''
+                  pushd sort-algos
+                  cargo watch -c -w src -x run
+                  popd
+                '';
+                sort-algos-test.exec = ''
+                  pushd sort-algos
                   cargo watch -c -w src -x test
                   popd
                 '';
