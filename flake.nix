@@ -44,6 +44,7 @@
             "mandelbrot"
             "progress"
             "csv-serde"
+            "json-serde"
             "sort-algos"
             "trie-me"
             "plot-me"
@@ -74,7 +75,7 @@
             inherit inputs pkgs;
             modules = let inherit (pkgFor pkgs) pkgs-rs;
             in [{
-              packages = [ cargo cargo-watch cargo-limit ]
+              packages = [ cargo cargo-expand cargo-watch cargo-limit ]
                 ++ (attrsets.mapAttrsToList (_: id) pkgs-rs);
               languages = { rust.enable = true; };
 
@@ -100,7 +101,8 @@
                   value = {
                     exec = ''
                       pushd ${name}
-                      cargo-watch -c -w . -x test
+                      # github.com/watchexec/watchexec/issues/76
+                      cargo-watch -c -w . -x "test -- --nocapture"
                       popd
                     '';
                   };
